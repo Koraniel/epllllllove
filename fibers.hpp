@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <memory>
 #include <optional>
+#include <ucontext.h>
 
 #include "stack_pool.hpp"
 #include <ucontext.h>
@@ -71,6 +72,7 @@ public:
     /// Inspect context after execution
     virtual void operator()(Action &, Context &) = 0;
 };
+
 
 /// Pointer to currently running context
 extern thread_local Context* current_ctx;
