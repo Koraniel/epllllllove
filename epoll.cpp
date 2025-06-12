@@ -3,11 +3,12 @@
 EpollScheduler* EpollScheduler::current_scheduler = nullptr;
 
 void trampoline(Fiber *fiber) {
-    /// process exceptions with std::current_exception()
-    /// TODO
+    // Execute the fiber. In this simplified implementation we ignore
+    // exceptions.
     (*fiber)();
 
-    EpollScheduler::current_scheduler->sched_context.switch_context(Action{Action::STOP});
+    // When the fiber finishes, notify the scheduler.
+    EpollScheduler::current_scheduler->sched_context.switch_context({Action::STOP});
     __builtin_unreachable();
 }
 
@@ -50,28 +51,58 @@ void scheduler_run(EpollScheduler &sched) {
 Context FiberScheduler::create_context_from_fiber(Fiber fiber) {
     Context context(std::move(fiber));
 
-    /// TODO
-    /// stack
-    /// function
+    // Prepare ucontext for the fiber so that it starts execution in the
+    // trampoline which in turn will call the stored callable.
+    getcontext(&context.uc);
+    context.uc.uc_stack.ss_sp = context.stack.ptr;
+    context.uc.uc_stack.ss_size = StackPool::STACK_SIZE;
+    context.uc.uc_link = nullptr;
+    makecontext(&context.uc, (void (*)())trampoline, 1, context.fiber.get());
 
     return context;
 }
 
 YieldData FiberScheduler::yield(YieldData data) {
-    /// current_scheduler->sched_context
-    /// If THROW -> throw current_scheduler->sched_context.exception
-    /// TODO
+    auto *sched = EpollScheduler::current_scheduler;
+    if (!sched) {
+        throw std::runtime_error("Global scheduler is empty");
+    }
+
+    // Store the data that the fiber wants to pass to the scheduler and switch
+    // to the scheduler context.  The returned action may carry data back.
+    current_action.user_data = data;
+    Action act = sched->sched_context.switch_context({Action::SCHED});
+    return act.user_data;
 }
 
 void FiberScheduler::run_one() {
-    sched_context = std::move(queue.front());
+    Context ctx = std::move(queue.front());
     queue.pop();
 
-    /// run with START or THROW if exception
-    /// except if exception with std::rethrow_exception
-    /// inspect if inspector
-    /// schedule again if SCHED
-    /// TODO
+    // Set the current context pointer to the scheduler context so that the
+    // running fiber can switch back to us.
+    current_ctx = &sched_context;
+
+    Action to_fiber;
+    if (sched_context.exception) {
+        to_fiber.action = Action::THROW;
+    } else {
+        to_fiber.action = Action::START;
+    }
+
+    Action result = ctx.switch_context(to_fiber);
+
+    if (ctx.inspector) {
+        (*ctx.inspector)(result, ctx);
+    }
+
+    if (result.action == Action::SCHED) {
+        schedule(std::move(ctx));
+    } else if (result.action == Action::THROW) {
+        // Unused in this simplified version
+    }
+
+    current_ctx = nullptr;
 }
 
 void EpollScheduler::await_read(Context context, YieldData data) {
