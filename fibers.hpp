@@ -6,6 +6,7 @@
 #include <ucontext.h>
 
 #include "stack_pool.hpp"
+#include <ucontext.h>
 
 
 using Fiber = std::function<void()>;
@@ -40,6 +41,7 @@ class Inspector;
 struct Context {
     std::unique_ptr<Fiber> fiber;
     StackPool::Stack stack;
+    ucontext_t ctx{};
 
     ucontext_t uc{};
 

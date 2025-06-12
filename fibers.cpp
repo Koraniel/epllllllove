@@ -4,6 +4,8 @@
 void trampoline(Fiber *fiber);
 
 StackPool stack_pool;
+static thread_local Context* current_ctx = nullptr;
+static thread_local Action current_action;
 
 // Thread local pointer to the currently running context.  It is used by
 // Context::switch_context to know from which context we are switching.
@@ -24,17 +26,17 @@ Context::Context(Fiber fiber)
 }
 
 Action Context::switch_context(Action action) {
-    // Save action that should be passed to the target context.
     current_action = action;
-
     Context* prev = current_ctx;
     current_ctx = this;
-
-    swapcontext(&prev->uc, &uc);
-
-    // When we are resumed, current_action contains the value passed by the
-    // context that resumed us.
-    Action ret = current_action;
-    current_ctx = prev;
-    return ret;
+    if (prev) {
+        if (swapcontext(&prev->ctx, &ctx) != 0) {
+            throw std::runtime_error("swapcontext failed");
+        }
+    } else {
+        if (setcontext(&ctx) != 0) {
+            throw std::runtime_error("setcontext failed");
+        }
+    }
+    return current_action;
 }
