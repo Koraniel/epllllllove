@@ -36,13 +36,16 @@ void scheduler_run(EpollScheduler &sched) {
         throw std::runtime_error("Global scheduler is not empty");
     }
     EpollScheduler::current_scheduler = &sched;
+    current_ctx = &scheduler_main_ctx;
     try {
         EpollScheduler::current_scheduler->run();
     } catch (...) {
         EpollScheduler::current_scheduler = nullptr;
+        current_ctx = nullptr;
         throw;
     }
     EpollScheduler::current_scheduler = nullptr;
+    current_ctx = nullptr;
 }
 
 Context FiberScheduler::create_context_from_fiber(Fiber fiber) {
@@ -57,7 +60,7 @@ Context FiberScheduler::create_context_from_fiber(Fiber fiber) {
 }
 
 YieldData FiberScheduler::yield(YieldData data) {
-    auto &ctx = EpollScheduler::current_scheduler->sched_context;
+    auto &ctx = scheduler_main_ctx;
     Action act = ctx.switch_context(Action{Action::SCHED, data});
     if (act.action == Action::THROW) {
         auto ex = ctx.exception;

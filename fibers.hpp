@@ -43,8 +43,6 @@ struct Context {
     StackPool::Stack stack;
     ucontext_t ctx{};
 
-    ucontext_t uc{};
-
     intptr_t rip = 0;
     intptr_t rsp = 0;
     std::shared_ptr<Inspector> inspector;
@@ -75,7 +73,12 @@ public:
     virtual void operator()(Action &, Context &) = 0;
 };
 
-/// Thread local pointer to the currently running context and the action passed
-/// between context switches.  They are defined in fibers.cpp.
+
+/// Pointer to currently running context
 extern thread_local Context* current_ctx;
+
+/// Last action passed to Context::switch_context
 extern thread_local Action current_action;
+
+/// Scheduler main context used for switching back from fibers
+extern thread_local Context scheduler_main_ctx;

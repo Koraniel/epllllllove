@@ -4,15 +4,9 @@
 void trampoline(Fiber *fiber);
 
 StackPool stack_pool;
-static thread_local Context* current_ctx = nullptr;
-static thread_local Action current_action;
-
-// Thread local pointer to the currently running context.  It is used by
-// Context::switch_context to know from which context we are switching.
 thread_local Context* current_ctx = nullptr;
-
-// Thread local storage for the action being transferred between contexts.
-thread_local Action current_action{};
+thread_local Action current_action;
+thread_local Context scheduler_main_ctx;
 
 Context::Context(Fiber fiber)
         : fiber(std::make_unique<Fiber>(std::move(fiber))),
