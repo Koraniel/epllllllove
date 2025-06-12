@@ -80,3 +80,11 @@ private:
 
 void schedule(Fiber fiber);
 void yield();
+
+template <class Inspector, class... Args>
+inline void create_current_fiber_inspector(Args... args) {
+    if (!EpollScheduler::current_scheduler) {
+        throw std::runtime_error("Global scheduler is empty");
+    }
+    EpollScheduler::current_scheduler->create_current_fiber_inspector<Inspector>(args...);
+}
