@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <memory>
 #include <optional>
+#include <ucontext.h>
 
 #include "stack_pool.hpp"
 #include <ucontext.h>
@@ -42,6 +43,8 @@ struct Context {
     StackPool::Stack stack;
     ucontext_t ctx{};
 
+    ucontext_t uc{};
+
     intptr_t rip = 0;
     intptr_t rsp = 0;
     std::shared_ptr<Inspector> inspector;
@@ -71,3 +74,8 @@ public:
     /// Inspect context after execution
     virtual void operator()(Action &, Context &) = 0;
 };
+
+/// Thread local pointer to the currently running context and the action passed
+/// between context switches.  They are defined in fibers.cpp.
+extern thread_local Context* current_ctx;
+extern thread_local Action current_action;
