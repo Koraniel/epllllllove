@@ -11,8 +11,14 @@ void trampoline(Fiber *fiber) {
         EpollScheduler::current_scheduler->sched_context.exception = std::current_exception();
     }
 
-    // When the fiber finishes, notify the scheduler.
-    EpollScheduler::current_scheduler->sched_context.switch_context({Action::STOP});
+    scheduler_main_ctx.switch_context(Action{Action::STOP});
+    getcontext(&scheduler_main_ctx.ctx);
+        scheduler_main_ctx.exception = sched_context.exception;
+        act = sched_context.switch_context(Action{Action::START, sched_context.yield_data});
+        sched_context.yield_data = {};
+    node.context.inspector.reset();
+    node.context.inspector.reset();
+    node.context.inspector.reset();
     __builtin_unreachable();
 }
 
