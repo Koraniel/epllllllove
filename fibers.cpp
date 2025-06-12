@@ -1,6 +1,9 @@
 #include "fibers.hpp"
 
 StackPool stack_pool;
+thread_local Context* current_ctx = nullptr;
+thread_local Action current_action;
+thread_local Context scheduler_main_ctx;
 
 Context::Context(Fiber fiber)
         : fiber(std::make_unique<Fiber>(std::move(fiber))),
@@ -9,16 +12,18 @@ Context::Context(Fiber fiber)
 }
 
 Action Context::switch_context(Action action) {
-    auto *ripp = &rip;
-    auto *rspp = &rsp;
-    asm volatile(""  /// save rbp
-                 ""  /// switch rsp
-                 ""  /// switch rip with ret_label
-                 /// BEFORE (B) GOING BACK
-                 "ret_label:"  /// TODO
-                 /// AFTER (A)
-                 ""  /// load rbp
-            : "+S"(rspp), "+D"(ripp)  /// throw action
-            ::"rax", "rbx", "rcx", "rdx", "memory", "cc");
-    return action;
+    current_action = action;
+    Context* prev = current_ctx;
+    current_ctx = this;
+    if (prev) {
+        if (swapcontext(&prev->ctx, &ctx) != 0) {
+            throw std::runtime_error("swapcontext failed");
+        }
+    } else {
+        // Should not happen, but start execution if no previous context
+        if (setcontext(&ctx) != 0) {
+            throw std::runtime_error("setcontext failed");
+        }
+    }
+    return current_action;
 }

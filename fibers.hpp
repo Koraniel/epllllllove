@@ -5,6 +5,7 @@
 #include <optional>
 
 #include "stack_pool.hpp"
+#include <ucontext.h>
 
 
 using Fiber = std::function<void()>;
@@ -39,6 +40,7 @@ class Inspector;
 struct Context {
     std::unique_ptr<Fiber> fiber;
     StackPool::Stack stack;
+    ucontext_t ctx{};
 
     intptr_t rip = 0;
     intptr_t rsp = 0;
@@ -69,3 +71,12 @@ public:
     /// Inspect context after execution
     virtual void operator()(Action &, Context &) = 0;
 };
+
+/// Pointer to currently running context
+extern thread_local Context* current_ctx;
+
+/// Last action passed to Context::switch_context
+extern thread_local Action current_action;
+
+/// Scheduler main context used for switching back from fibers
+extern thread_local Context scheduler_main_ctx;

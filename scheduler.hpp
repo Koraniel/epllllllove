@@ -3,11 +3,14 @@
 
 #include "fibers.hpp"
 
+class EpollScheduler;
+
 class FiberScheduler {
 public:
     friend class Inspector;
     /// Fiber simple trampoline
     friend void trampoline(Fiber *fiber);
+    friend void scheduler_run(EpollScheduler &);
 
     virtual ~FiberScheduler() {
         assert(queue.empty());
